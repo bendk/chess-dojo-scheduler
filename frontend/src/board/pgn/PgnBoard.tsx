@@ -26,7 +26,7 @@ interface ChessConfig {
     allowMoveDeletion?: boolean;
 }
 
-type ChessContextType = {
+export type ChessContextType = {
     chess?: Chess;
     board?: BoardApi;
     config?: ChessConfig;

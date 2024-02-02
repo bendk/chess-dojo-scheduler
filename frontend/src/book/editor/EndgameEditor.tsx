@@ -1,0 +1,86 @@
+import { Node, EndgameBook, EndgamePosition, lineCount } from "chess-tree"
+import React, { useCallback, useState } from 'react'
+import { useNavigate } from 'react-router-dom';
+import Editor from './Editor'
+import EndgamePositionSelector from './EndgamePositionSelector'
+import { updateBook } from "../../api/bookApi"
+
+export interface EndgameEditorProps {
+    book: EndgameBook;
+}
+
+function calcTotalLineCount(positions: EndgamePosition[]): number {
+    return positions.reduce(
+        (count, position) => count + lineCount(position.rootNode),
+        0)
+}
+
+const EndgameEditor: React.FC<EndgameEditorProps> = ({book}) => {
+    const navigate = useNavigate()
+    const [positions, setPositions] = useState<EndgamePosition[]>(book.positions)
+    const [currentPosition, setCurrentPosition] = useState<EndgamePosition|null>(null)
+    const [initialLineCount, setInitialLineCount] = useState(calcTotalLineCount(book.positions))
+
+    const updatePositions = useCallback((newPositions: EndgamePosition[]) => {
+        setPositions(newPositions)
+        const newLineCount = calcTotalLineCount(newPositions)
+        updateBook(
+            'test-user',
+            { ...book, lineCount: newLineCount, positions: newPositions },
+            initialLineCount,
+        ).then(() => setInitialLineCount(newLineCount))
+    }, [book, initialLineCount])
+
+
+    const onCreatePosition = useCallback((position: EndgamePosition) => {
+        updatePositions([...positions, position])
+        setCurrentPosition(position)
+    }, [positions, updatePositions])
+
+    const onDeletePosition = useCallback((position: EndgamePosition) => {
+        updatePositions(positions.filter(p => p.id !== position.id))
+    }, [positions, updatePositions])
+
+    const onSavePosition = useCallback((rootNode: Node) => {
+        if (currentPosition) {
+            updatePositions(positions.map(p => {
+                if (p.id === currentPosition.id) {
+                    return {
+                        ...currentPosition,
+                        rootNode: rootNode
+                    }
+                } else {
+                    return p
+                }
+            }))
+            setCurrentPosition(null)
+        }
+    }, [positions, updatePositions, currentPosition])
+
+    const onDiscardPosition = useCallback(() => {
+        setCurrentPosition(null)
+    }, [setCurrentPosition])
+
+    if (currentPosition === null) {
+        return <EndgamePositionSelector
+            positions={positions}
+            onSelect={setCurrentPosition}
+            onCreate={onCreatePosition}
+            onDelete={onDeletePosition}
+            onExit={() => navigate("/book/")}
+        />
+    } else {
+        return <Editor
+            name={book.name}
+            initialPosition={currentPosition.position}
+            initialRootNode={currentPosition.rootNode}
+            showDatabase={false}
+            color={currentPosition.color}
+            initialPly={(currentPosition.color === "w") ? 0 : 1}
+            onDiscard={onDiscardPosition}
+            onSave={onSavePosition}
+        />
+    }
+}
+
+export default EndgameEditor
