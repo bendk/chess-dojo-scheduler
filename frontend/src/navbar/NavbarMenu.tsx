@@ -204,6 +204,11 @@ function unauthenticatedStartItems(
             ],
         },
         {
+            name: 'Book',
+            icon: <MenuBook />,
+            onClick: () => navigate('/book/'),
+        },
+        {
             name: 'Shop',
             icon: <Sell />,
             onClick: () => toggleExpansion('Shop'),
