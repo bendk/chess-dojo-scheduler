@@ -1,3 +1,4 @@
+import { isEqual } from 'lodash';
 import { EditorReducer, Move, Node, Priority, ViewNode, childCount, getDescendant, nagText, viewNodeTree } from "chess-tree"
 import React, { Fragment, useCallback, useState } from 'react'
 import { Box, Button, Link, Paper, Stack, Typography } from '@mui/material'
@@ -14,18 +15,19 @@ interface NodeTreeProps {
     initialPly: number;
     leadingMoves: Move[];
     onClickMove: (moves: Move[]) => void;
-    onContextMenu: (moves: Move[], event: React.MouseEvent<HTMLElement>) => void;
+    onContextMenu?: (moves: Move[], event: React.MouseEvent<HTMLElement>) => void;
     sx?: SxProps<Theme>;
     currentMoves: Move[];
+    variant?: "split-book";
 }
 
-const NodeTree: React.FC<NodeTreeProps> = ({childNodes, initialPly, leadingMoves, onClickMove, onContextMenu, sx, currentMoves}) => {
+const NodeTree: React.FC<NodeTreeProps> = ({childNodes, initialPly, leadingMoves, onClickMove, onContextMenu, sx, currentMoves, variant}) => {
     let content
     if (leadingMoves.length > 0) {
         content = <Stack direction="row" alignItems="flex-start">
                 <Button
                     onClick={onClickMove.bind(null, leadingMoves)}
-                    onContextMenu={onContextMenu.bind(null, leadingMoves)}
+                    onContextMenu={onContextMenu && onContextMenu.bind(null, leadingMoves)}
                     color="inherit"
                     sx={{py: 0, m:0, textTransform: "none", lineHeight: "20px", minWidth: "0px"}}
                 >
@@ -39,6 +41,7 @@ const NodeTree: React.FC<NodeTreeProps> = ({childNodes, initialPly, leadingMoves
                     onClickMove={onClickMove}
                     onContextMenu={onContextMenu}
                     currentMoves={currentMoves}
+                    variant={variant}
                 />
                 <NodeConnectorLines branchCounts={[]} root={true} />
         </Stack>
@@ -51,13 +54,19 @@ const NodeTree: React.FC<NodeTreeProps> = ({childNodes, initialPly, leadingMoves
             onClickMove={onClickMove}
             onContextMenu={onContextMenu}
             currentMoves={currentMoves}
+            variant={variant}
         />
     }
+    let title = "Saved lines"
+    if (variant == "split-book") {
+        title = "Current lines"
+    }
+
     return <Box sx={sx}>
         <Paper sx={{ px: 1, py: 0.5 }}>
             <Stack direction="row" spacing={1} pb={0.5}>
                 <MenuBook />
-                <Typography variant="body2" pt={0.5}>Saved lines</Typography>
+                <Typography variant="body2" pt={0.5}>{ title }</Typography>
             </Stack>
             <Box sx={{pl: 2}}>{content}</Box>
         </Paper>
@@ -70,11 +79,12 @@ interface NodeChildrenListProps {
     root: boolean;
     initialPly?: number;
     onClickMove: (moves: string[]) => void;
-    onContextMenu: (moves: Move[], event: React.MouseEvent<HTMLElement>) => void;
+    onContextMenu?: (moves: Move[], event: React.MouseEvent<HTMLElement>) => void;
     currentMoves: Move[];
+    variant?: "split-book";
 }
 
-const NodeChildrenList: React.FC<NodeChildrenListProps> = ({childNodes, leadingMoves, root, initialPly, onClickMove, onContextMenu, currentMoves}) => {
+const NodeChildrenList: React.FC<NodeChildrenListProps> = ({childNodes, leadingMoves, root, initialPly, onClickMove, onContextMenu, currentMoves, variant}) => {
     return <Stack position="relative">
         {
             childNodes.map(childNode => {
@@ -86,7 +96,7 @@ const NodeChildrenList: React.FC<NodeChildrenListProps> = ({childNodes, leadingM
                     return <Link
                         href="#"
                         onClick={onClickMove.bind(null, moves)}
-                        onContextMenu={onContextMenu.bind(null, moves)}
+                        onContextMenu={onContextMenu && onContextMenu.bind(null, moves)}
                         color="inherit"
                         underline="hover"
                     >
@@ -94,14 +104,20 @@ const NodeChildrenList: React.FC<NodeChildrenListProps> = ({childNodes, leadingM
                     </Link>
                 } else {
                     // Expanded node, display a list of children to the right of the move
+                    let current: boolean
+                    if (variant == "split-book") {
+                        current = currentMoves.length > 0 && isEqual(moves.slice(0, currentMoves.length), currentMoves)
+                    } else {
+                        current = isEqual(moves, currentMoves)
+                    }
                     return <Stack direction="row" alignItems="flex-start" key={childNode.move}>
                         <Button
                             onClick={onClickMove.bind(null, moves)}
-                            onContextMenu={onContextMenu.bind(null, moves)}
+                            onContextMenu={onContextMenu && onContextMenu.bind(null, moves)}
                             color="inherit"
                             sx={{py: 0, m:0, textTransform: "none", lineHeight: "20px", minWidth: "0px"}}
                         >
-                            <MoveText text={moveText} viewNode={childNode} current={movesEqual(moves, currentMoves)} />
+                            <MoveText text={moveText} viewNode={childNode} current={current} />
                         </Button>
                         <NodeChildrenList
                             childNodes={Object.values(childNode.children)}
@@ -110,6 +126,7 @@ const NodeChildrenList: React.FC<NodeChildrenListProps> = ({childNodes, leadingM
                             onClickMove={onClickMove}
                             onContextMenu={onContextMenu}
                             currentMoves={currentMoves}
+                            variant={variant}
                         />
                     </Stack>
                 }
@@ -117,13 +134,6 @@ const NodeChildrenList: React.FC<NodeChildrenListProps> = ({childNodes, leadingM
         }
         <NodeConnectorLines branchCounts={childNodes.slice(0, -1).map(child => child.branchCount)} root={root} />
     </Stack>
-}
-
-function movesEqual(moves1: Move[], moves2: Move[]): boolean {
-    if (moves1.length !== moves2.length) {
-        return false
-    }
-    return moves1.every((value, index) => value === moves2[index])
 }
 
 interface MoveTextProps {
@@ -211,11 +221,13 @@ interface VariationListProps {
     initialPly: number;
     rootNode: Node;
     moves: string[];
-    dispatch: React.Dispatch<EditorReducer.Action>;
+    setMoves: (moves: Move[]) => void;
+    dispatch?: React.Dispatch<EditorReducer.Action>;
     sx?: SxProps<Theme>;
+    variant?: "split-book";
 }
 
-const VariationList: React.FC<VariationListProps> = ({initialPly, rootNode, moves, dispatch, sx}) => {
+const VariationList: React.FC<VariationListProps> = ({initialPly, rootNode, moves, setMoves, dispatch, sx, variant}) => {
     const [menuState, setMenuState] = useState<[HTMLElement, Node, Move[]]|null>(null);
     const onContextMenu = useCallback((moves: Move[], event: React.MouseEvent<HTMLElement>) => {
         const node = getDescendant(rootNode, moves)
@@ -240,17 +252,18 @@ const VariationList: React.FC<VariationListProps> = ({initialPly, rootNode, move
             leadingMoves={tree.leadingMoves}
             childNodes={tree.childNodes}
             initialPly={initialPly}
-            onClickMove={moves => dispatch({type: 'set-moves', moves})}
-            onContextMenu={onContextMenu}
+            onClickMove={setMoves}
+            onContextMenu={dispatch ? onContextMenu : undefined}
             currentMoves={moves}
             sx={sx}
+            variant={variant}
         />
-        { menuState
+        { (menuState && dispatch)
             ? <LineMenu
                 menuAnchor={menuState[0]}
                 currentNode={menuState[1]}
                 dispatch={(action: EditorReducer.Action) => {
-                    dispatch({type: 'set-moves', moves: menuState[2]})
+                    setMoves(menuState[2])
                     dispatch(action)
                 }}
                 onClose={() => setMenuState(null)}

@@ -29,6 +29,7 @@ import BookNewOpening from './book/BookNewOpening';
 import BookNewEndgame from './book/BookNewEndgame';
 import BookEdit from './book/BookEdit';
 import BookAddLine from './book/BookAddLine';
+import BookSplitPage from './book/BookSplitPage';
 import TrainingPage from './book/training/TrainingPage';
 import NewTrainingPage from './book/training/NewTrainingPage';
 import CoachPortalPage from './coaching/coaches/CoachPortalPage';
@@ -130,6 +131,11 @@ const router = createBrowserRouter(
                         <Route path="new-endgame" element={<BookNewEndgame />} />
                         <Route path=':bookId'>
                             <Route index element={<BookEdit />} />
+                        </Route>
+                    </Route>
+                    <Route path='split-book'>
+                        <Route path=':bookId'>
+                            <Route index element={<BookSplitPage />} />
                         </Route>
                     </Route>
                     <Route path='training'>

@@ -19,9 +19,13 @@ const BookBoardControls: React.FC<BookBoardControlsProps> = ({onMovesChange}) =>
     const {chess, board} = useChess()
     const update = useCallback(() => {
         if (onMovesChange && chess) {
-            const moves = chess.history()
-                .slice(0, chess.currentMove()?.ply ?? 0)
-                .map(m => m.san);
+            const moves = []
+            let m = chess.currentMove()
+            while(m) {
+                moves.push(m.san)
+                m = m.previous
+            }
+            moves.reverse()
             onMovesChange(moves)
         }
         reconcile(chess, board)

@@ -2,11 +2,7 @@ import { BookSummary, exportBook, importBook } from 'chess-tree'
 import { downloadZip } from 'client-zip'
 import React, { useCallback, useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { Button, Link, CircularProgress, ListItemIcon, ListItemText, Menu, MenuItem, Paper, Stack, Typography } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
-import MenuIcon from '@mui/icons-material/Menu';
+import { Button, Link, CircularProgress, Paper, Stack, Typography } from '@mui/material';
 import { DataGridPro, GridColDef, GridEventListener, GridRenderCellParams, GridRowId, GridToolbarContainer, GridToolbarQuickFilter, useGridApiRef } from '@mui/x-data-grid-pro';
 import { getBook, deleteBook, putBook } from '../api/bookApi';
 
@@ -18,8 +14,6 @@ interface BookListProps {
 const BookList: React.FC<BookListProps> = ({bookList, setBookList}) => {
     const navigate = useNavigate()
     const gridApiRef = useGridApiRef();
-    const [menuAnchor, setMenuAnchor] = useState<HTMLElement|null>(null);
-    const [selectionMode, setSelectionMode] = useState<string|null>(null)
     const [selection, setSelection] = useState<GridRowId[]>([])
     const [operationInProgress, setOperationInProgress] = useState<string|null>(null)
     const columns: GridColDef[] = [
@@ -95,17 +89,10 @@ const BookList: React.FC<BookListProps> = ({bookList, setBookList}) => {
         }
     };
 
-    const startSelection = useCallback((selectionMode: string) => {
-        setSelectionMode(selectionMode)
-        setMenuAnchor(null)
-        gridApiRef.current?.setRowSelectionModel([])
-    }, [setSelectionMode, gridApiRef])
-
     const onDelete = useCallback(() => {
         if(operationInProgress !== null || selection.length === 0) {
             return
         }
-        setSelectionMode(null)
         if(selection.length === 1) {
             setOperationInProgress("Deleting book...")
         } else {
@@ -120,11 +107,17 @@ const BookList: React.FC<BookListProps> = ({bookList, setBookList}) => {
 
     }, [selection, operationInProgress, setOperationInProgress, bookList, setBookList])
 
+    const onSplitLines = useCallback(() => {
+        if(operationInProgress !== null || selection.length === 0) {
+            return
+        }
+        navigate(`/book/split-book/${selection[0]}`)
+    }, [selection, operationInProgress, navigate])
+
     const onExport = useCallback(() => {
         if(operationInProgress !== null || selection.length === 0) {
             return
         }
-        setSelectionMode(null)
         if(selection.length === 1) {
             setOperationInProgress("Exporting book...")
         } else {
@@ -175,7 +168,6 @@ const BookList: React.FC<BookListProps> = ({bookList, setBookList}) => {
     }, [selection, operationInProgress, setOperationInProgress])
 
     const onImport = useCallback(() => {
-        setMenuAnchor(null)
         var input = document.createElement('input');
         input.type = 'file';
         input.onchange = e => { 
@@ -218,7 +210,7 @@ const BookList: React.FC<BookListProps> = ({bookList, setBookList}) => {
             disableColumnMenu={true}
             hideFooter={true}
             onCellClick={onCellClick}
-            checkboxSelection={selectionMode !== null}
+            checkboxSelection={true}
             onRowSelectionModelChange={setSelection}
             slots={{ toolbar: customToolbar }}
         />
@@ -226,47 +218,28 @@ const BookList: React.FC<BookListProps> = ({bookList, setBookList}) => {
 
     let bottom
     if (operationInProgress !== null) {
-        bottom = <Stack spacing={2} alignItems="center">
+        bottom = <Stack spacing={2} alignItems="center" direction="row">
             <CircularProgress />
             <Typography variant="h5">{operationInProgress}</Typography>
         </Stack>
-    } else if (selectionMode === "export") {
+    } else if (selection.length > 0) {
         bottom = <Stack spacing={1}>
             <Stack direction="row" justifyContent="space-between">
-                <Button variant="contained" sx={{ px: 10, py: 2}} onClick={onExport}>Export</Button>
-                <Button variant="outlined" sx={{ px: 10, py: 2}} onClick={() => setSelectionMode(null)}>Cancel</Button>
-            </Stack>
-        </Stack>
-    } else if (selectionMode === "delete") {
-        bottom = <Stack spacing={1}>
-            <Stack direction="row" justifyContent="space-between">
-                <Button variant="contained" sx={{ px: 10, py: 2}} onClick={onDelete}>Delete</Button>
-                <Button variant="outlined" sx={{ px: 10, py: 2}} onClick={() => setSelectionMode(null)}>Cancel</Button>
+                <Stack direction="row" spacing={2}>
+                    <Button variant="contained" sx={{ px: 5, py: 1}} onClick={onExport}>Export</Button>
+                    <Button variant="contained" sx={{ px: 5, py: 1}} onClick={onDelete}>Delete</Button>
+                    <Button variant="contained" sx={{ px: 5, py: 1}} onClick={onSplitLines} disabled={selection.length > 1}>Split lines</Button>
+                </Stack>
+                <Button variant="outlined" sx={{ px: 5, py: 1}} onClick={() => gridApiRef.current?.setRowSelectionModel([])}>Deselect All</Button>
             </Stack>
         </Stack>
     } else {
         bottom = <Stack direction="row" justifyContent="space-between">
-            <Stack direction="row" spacing={5}>
-                <Button component={RouterLink} to="/book/books/new-opening" variant="contained" sx={{ px: 10, py: 2}}>Add Opening Book</Button>
-                <Button component={RouterLink} to="/book/books/new-endgame" variant="contained" sx={{ px: 10, py: 2}}>Add Endgame Book</Button>
+            <Stack direction="row" spacing={2}>
+                <Button component={RouterLink} to="/book/books/new-opening" variant="contained" sx={{ px: 5, py: 1}}>New Opening</Button>
+                <Button component={RouterLink} to="/book/books/new-endgame" variant="contained" sx={{ px: 5, py: 1}}>New Endgame</Button>
             </Stack>
-            <Button onClick={(elt) => setMenuAnchor(elt.currentTarget)}>
-                <MenuIcon />
-            </Button>
-            <Menu open={menuAnchor !== null} anchorEl={menuAnchor} onClose={() => setMenuAnchor(null)}>
-                <MenuItem onClick={() => startSelection("delete")} divider>
-                    <ListItemIcon><DeleteIcon /></ListItemIcon>
-                    <ListItemText>Delete Books</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => startSelection("export")}>
-                    <ListItemIcon><FileDownloadIcon /></ListItemIcon>
-                    <ListItemText>Export Books</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={onImport}>
-                    <ListItemIcon><FileUploadIcon /></ListItemIcon>
-                    <ListItemText>Import Books</ListItemText>
-                </MenuItem>
-            </Menu>
+            <Button onClick={onImport} variant="contained" sx={{ px: 5, py: 1}}>Import</Button>
         </Stack>
     }
 

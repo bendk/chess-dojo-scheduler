@@ -129,6 +129,7 @@ const Editor: React.FC<EditorProps> = ({name, initialPly, initialPosition, initi
                     initialPly={initialPly}
                     rootNode={rootNode}
                     moves={moves}
+                    setMoves={moves => dispatch({type: 'set-moves', moves})}
                     dispatch={dispatch}
                     sx={{pt: 4}}
                 />
